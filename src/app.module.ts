@@ -1,11 +1,10 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule } from './modules/auth/auth.module';
-import { UsersModule } from './modules/users/users.module';
 import { ProductsModule } from './modules/products/products.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { CartModule } from './modules/cart/cart.module';
+import { CheckoutModule } from './modules/checkout/checkout.module';
 import { OrdersModule } from './modules/orders/orders.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
@@ -19,7 +18,7 @@ import { ConfigModule } from '@nestjs/config';
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
-    AuthModule, UsersModule, ProductsModule, CategoriesModule, CartModule, OrdersModule, PaymentsModule, ReviewsModule, InventoryModule, HealthModule
+    ProductsModule, CategoriesModule, CartModule, CheckoutModule, OrdersModule, PaymentsModule, ReviewsModule, InventoryModule, HealthModule
   ],
   controllers: [AppController],
   providers: [AppService],

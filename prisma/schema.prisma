@@ -4,20 +4,7 @@ generator client {
 
 datasource db {
   provider = "mysql"
-}
-
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  name      String?
-  role      Role     @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  cart      Cart?
-  orders    Order[]
-  addresses Address[]
+  url      = env("DATABASE_URL")
 }
 
 model Product {
@@ -26,15 +13,15 @@ model Product {
   description String?  @db.Text
   price       Decimal  @db.Decimal(10, 2)
   stock       Int      @default(0)
-  imageUrl    String?
+  images      Json? // Array of image URLs
   categoryId  Int
   category    Category @relation(fields: [categoryId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  deletedAt   DateTime? // Soft delete
 
-  cartItems   CartItem[]
-  orderItems  OrderItem[]
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+  reviews    Review[]
 
   @@index([categoryId])
 }
@@ -42,6 +29,7 @@ model Product {
 model Category {
   id        Int       @id @default(autoincrement())
   name      String    @unique
+  slug      String    @unique
   products  Product[]
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -49,71 +37,79 @@ model Category {
 
 model Cart {
   id        Int        @id @default(autoincrement())
-  userId    Int        @unique
-  user      User       @relation(fields: [userId], references: [id])
+  sessionId String     @unique // UUID from client
   items     CartItem[]
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 }
 
 model CartItem {
-  id        Int      @id @default(autoincrement())
-  cartId    Int
-  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  productId Int
-  product   Product  @relation(fields: [productId], references: [id])
-  quantity  Int      @default(1)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            Int      @id @default(autoincrement())
+  cartId        Int
+  cart          Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId     Int
+  product       Product  @relation(fields: [productId], references: [id])
+  quantity      Int      @default(1)
+  priceSnapshot Decimal? @db.Decimal(10, 2) // Optional: create snapshot on add
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@unique([cartId, productId])
 }
 
 model Order {
-  id          Int         @id @default(autoincrement())
-  userId      Int
-  user        User        @relation(fields: [userId], references: [id])
-  totalAmount Decimal     @db.Decimal(10, 2)
-  status      OrderStatus @default(PENDING)
-  addressId   Int
-  address     Address     @relation(fields: [addressId], references: [id])
-  items       OrderItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  id              Int              @id @default(autoincrement())
+  orderNumber     String           @unique @default(uuid())
+  status          OrderStatus      @default(PENDING)
+  totalAmount     Decimal          @db.Decimal(10, 2)
+  paymentIntentId String?          @unique
+  customer        CustomerDetails?
+  items           OrderItem[]
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model OrderItem {
-  id        Int     @id @default(autoincrement())
-  orderId   Int
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId Int
-  product   Product @relation(fields: [productId], references: [id])
-  quantity  Int
-  price     Decimal @db.Decimal(10, 2) // Price at the time of order
+  id            Int     @id @default(autoincrement())
+  orderId       Int
+  order         Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     Int
+  product       Product @relation(fields: [productId], references: [id])
+  quantity      Int
+  priceSnapshot Decimal @db.Decimal(10, 2) // Price at the time of order
 }
 
-model Address {
+model CustomerDetails {
   id        Int      @id @default(autoincrement())
-  userId    Int
-  user      User     @relation(fields: [userId], references: [id])
-  street    String
+  orderId   Int      @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fullName  String
+  email     String
+  phone     String
+  address   String
   city      String
   state     String
-  zip       String
   country   String
-  orders    Order[]
+  pincode   String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
-enum Role {
-  USER
-  ADMIN
+model Review {
+  id           Int      @id @default(autoincrement())
+  productId    Int
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  customerName String
+  rating       Int // 1-5
+  comment      String?  @db.Text
+  createdAt    DateTime @default(now())
+
+  @@index([productId])
 }
 
 enum OrderStatus {
   PENDING
   PAID
+  FAILED
   SHIPPED
   DELIVERED
   CANCELLED
