@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { CreateCategoryDto, UpdateCategoryDto } from './dto/create-category.dto';
+import { CreateCategoryDto } from './dto/create-category.dto';
 
 @Injectable()
 export class CategoriesService {
@@ -13,26 +13,25 @@ export class CategoriesService {
     }
 
     async findAll() {
-        return this.prisma.category.findMany();
+        return this.prisma.category.findMany({
+            include: {
+                _count: {
+                    select: { products: true },
+                },
+            },
+        });
     }
 
     async findOne(id: number) {
-        return this.prisma.category.findUnique({
+        const category = await this.prisma.category.findUnique({
             where: { id },
+            include: { products: true },
         });
-    }
 
-    async update(id: number, updateCategoryDto: UpdateCategoryDto) {
-        return this.prisma.category.update({
-            where: { id },
-            data: updateCategoryDto,
-        });
-    }
+        if (!category) {
+            throw new NotFoundException(`Category with ID ${id} not found`);
+        }
 
-    async remove(id: number) {
-        return this.prisma.category.delete({
-            where: { id },
-        });
+        return category;
     }
 }
-

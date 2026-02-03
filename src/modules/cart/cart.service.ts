@@ -1,4 +1,116 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { PrismaService } from '../../database/prisma.service';
+import { AddToCartDto, UpdateCartItemDto } from './dto/cart.dto';
 
 @Injectable()
-export class CartService {}
+export class CartService {
+    constructor(private prisma: PrismaService) { }
+
+    async getCart(sessionId: string) {
+        const cart = await this.prisma.cart.findUnique({
+            where: { sessionId },
+            include: {
+                items: {
+                    include: { product: true },
+                },
+            },
+        });
+
+        if (!cart) {
+            // Return empty structure if no cart exists yet
+            return { sessionId, items: [], total: 0 };
+        }
+
+        const total = cart.items.reduce((sum, item) => {
+            // Use current product price for calculation, or snapshot if we wanted strict locking
+            return sum + Number(item.product.price) * item.quantity;
+        }, 0);
+
+        return { ...cart, total };
+    }
+
+    async addToCart(dto: AddToCartDto) {
+        const { sessionId, productId, quantity } = dto;
+
+        // 1. Check Product Stock
+        const product = await this.prisma.product.findUnique({ where: { id: productId } });
+        if (!product) throw new NotFoundException('Product not found');
+        if (product.stock < quantity) throw new BadRequestException('Insufficient stock');
+
+        // 2. Get or Create Cart
+        let cart = await this.prisma.cart.findUnique({ where: { sessionId } });
+        if (!cart) {
+            cart = await this.prisma.cart.create({ data: { sessionId } });
+        }
+
+        // 3. Upsert Cart Item
+        // Note: We snapshot price here, but real checkout should verify again
+        const existingItem = await this.prisma.cartItem.findUnique({
+            where: {
+                cartId_productId: {
+                    cartId: cart.id,
+                    productId: productId,
+                },
+            },
+        });
+
+        if (existingItem) {
+            await this.prisma.cartItem.update({
+                where: { id: existingItem.id },
+                data: { quantity: existingItem.quantity + quantity },
+            });
+        } else {
+            await this.prisma.cartItem.create({
+                data: {
+                    cartId: cart.id,
+                    productId,
+                    quantity,
+                    priceSnapshot: product.price,
+                },
+            });
+        }
+
+        return this.getCart(sessionId);
+    }
+
+    async updateItem(dto: UpdateCartItemDto) {
+        const { sessionId, productId, quantity } = dto;
+
+        const cart = await this.prisma.cart.findUnique({ where: { sessionId } });
+        if (!cart) throw new NotFoundException('Cart not found');
+
+        const item = await this.prisma.cartItem.findUnique({
+            where: { cartId_productId: { cartId: cart.id, productId } }
+        });
+        if (!item) throw new NotFoundException('Item not found in cart');
+
+        await this.prisma.cartItem.update({
+            where: { id: item.id },
+            data: { quantity }
+        });
+
+        return this.getCart(sessionId);
+    }
+
+    async removeItem(sessionId: string, productId: number) {
+        const cart = await this.prisma.cart.findUnique({ where: { sessionId } });
+        if (!cart) throw new NotFoundException('Cart not found');
+
+        await this.prisma.cartItem.deleteMany({
+            where: {
+                cartId: cart.id,
+                productId: productId
+            }
+        });
+
+        return this.getCart(sessionId);
+    }
+
+    async deleteCart(sessionId: string) {
+        const cart = await this.prisma.cart.findUnique({ where: { sessionId } });
+        if (cart) {
+            await this.prisma.cart.delete({ where: { id: cart.id } });
+        }
+        return { message: 'Cart cleared' };
+    }
+}
