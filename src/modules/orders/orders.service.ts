@@ -8,7 +8,7 @@ export class OrdersService {
 
     async findAll() {
         return this.prisma.order.findMany({
-            include: { user: true },
+            include: { customer: true },
             orderBy: { createdAt: 'desc' }
         });
     }
@@ -17,8 +17,7 @@ export class OrdersService {
         return this.prisma.order.findUnique({
             where: { id },
             include: {
-                user: true,
-                address: true,
+                customer: true,
                 items: { include: { product: true } }
             },
         });

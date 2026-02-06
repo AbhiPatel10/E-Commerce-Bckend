@@ -5,25 +5,17 @@ import { PrismaService } from '../../database/prisma.service';
 export class UsersService {
     constructor(private prisma: PrismaService) { }
 
-    async create(data: any) {
-        return this.prisma.user.create({ data });
-    }
-
-    async findByEmail(email: string) {
-        return this.prisma.user.findUnique({ where: { email } });
-    }
-
+    // Admin dashboard usage: List all customers (from orders)
     async findAll() {
-        return this.prisma.user.findMany({
-            where: { role: 'USER' },
-            select: { id: true, email: true, name: true, role: true, createdAt: true }, // Exclude password
+        return this.prisma.customerDetails.findMany({
+            orderBy: { createdAt: 'desc' }
         });
     }
 
     async findOne(id: number) {
-        return this.prisma.user.findUnique({
+        return this.prisma.customerDetails.findUnique({
             where: { id },
-            select: { id: true, email: true, name: true, role: true, createdAt: true, orders: true, addresses: true },
+            include: { order: true }
         });
     }
 }

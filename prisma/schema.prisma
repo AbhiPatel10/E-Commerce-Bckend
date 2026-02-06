@@ -1,10 +1,10 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "client"
 }
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
 
 model Product {
@@ -16,6 +16,8 @@ model Product {
   images      Json? // Array of image URLs
   categoryId  Int
   category    Category @relation(fields: [categoryId], references: [id])
+  brandId     Int?
+  brand       Brand?   @relation(fields: [brandId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -24,15 +26,39 @@ model Product {
   reviews    Review[]
 
   @@index([categoryId])
+  @@index([brandId])
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  slug      String    @unique
-  products  Product[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?   @db.Text
+  slug        String    @unique
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Brand {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?   @db.Text
+  logoImageId Int?      @unique
+  logoImage   Image?    @relation(fields: [logoImageId], references: [id])
+  slug        String    @unique
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Image {
+  id          Int      @id @default(autoincrement())
+  provider    String // e.g., 'cloudinary', 's3'
+  url         String   @db.Text
+  providerKey String // publicId for Cloudinary, Key for S3
+  brand       Brand?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Cart {
@@ -104,6 +130,15 @@ model Review {
   createdAt    DateTime @default(now())
 
   @@index([productId])
+}
+
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum OrderStatus {

@@ -27,7 +27,7 @@ export class ProductsService {
         });
     }
 
-    async create(createProductDto: CreateProductDto) {
+    async create(createProductDto: any) {
         // Ensure category exists? Prisma will throw if not.
         return this.prisma.product.create({
             data: {
@@ -35,23 +35,31 @@ export class ProductsService {
                 description: createProductDto.description,
                 price: createProductDto.price,
                 stock: createProductDto.stock,
-                imageUrl: createProductDto.imageUrl,
+                images: createProductDto.imageUrl ? [createProductDto.imageUrl] : [],
                 category: { connect: { id: createProductDto.categoryId } }
             },
         });
     }
 
-    async update(id: number, updateProductDto: UpdateProductDto) {
+    async update(id: number, updateProductDto: any) {
+        const data: any = {
+            name: updateProductDto.name,
+            description: updateProductDto.description,
+            price: updateProductDto.price,
+            stock: updateProductDto.stock,
+        };
+
+        if (updateProductDto.imageUrl) {
+            data.images = [updateProductDto.imageUrl];
+        }
+
+        if (updateProductDto.categoryId) {
+            data.categoryId = updateProductDto.categoryId;
+        }
+
         return this.prisma.product.update({
             where: { id },
-            data: {
-                name: updateProductDto.name,
-                description: updateProductDto.description,
-                price: updateProductDto.price,
-                stock: updateProductDto.stock,
-                imageUrl: updateProductDto.imageUrl,
-                categoryId: updateProductDto.categoryId // Direct update works too
-            },
+            data,
         });
     }
 
