@@ -1,34 +1,65 @@
-import { IsString, IsNumber, IsOptional, IsInt, Min, IsEnum } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsEnum, IsArray, Min } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { ProductStatus } from '@prisma/client';
 
 export class CreateProductDto {
     @ApiProperty()
     @IsString()
+    @IsNotEmpty()
     name: string;
 
-    @ApiProperty({ required: false })
-    @IsOptional()
+    @ApiPropertyOptional()
     @IsString()
+    @IsOptional()
+    shortDescription?: string;
+
+    @ApiPropertyOptional()
+    @IsString()
+    @IsOptional()
     description?: string;
 
     @ApiProperty()
     @IsNumber()
+    @IsNotEmpty()
     @Min(0)
     price: number;
 
+    @ApiPropertyOptional({ default: 0 })
+    @IsNumber()
+    @IsOptional()
+    @Min(0)
+    discountPercentage?: number;
+
+    @ApiPropertyOptional({ default: 0 })
+    @IsNumber()
+    @IsOptional()
+    @Min(0)
+    vatPercentage?: number;
+
     @ApiProperty()
-    @IsInt()
+    @IsNumber()
+    @IsNotEmpty()
     @Min(0)
     stock: number;
 
-    @ApiProperty({ required: false })
+    @ApiProperty({ enum: ProductStatus, default: ProductStatus.ACTIVE })
+    @IsEnum(ProductStatus)
     @IsOptional()
-    @IsString()
-    imageUrl?: string;
+    status?: ProductStatus;
 
     @ApiProperty()
-    @IsInt() // Prisma schema says categoryId is Int
-    categoryId: number; // Frontend sends 'category' but we can map it or expect categoryId
-}
+    @IsNumber()
+    @IsNotEmpty()
+    categoryId: number;
 
-export class UpdateProductDto extends CreateProductDto { }
+    @ApiPropertyOptional()
+    @IsNumber()
+    @IsOptional()
+    brandId?: number;
+
+    @ApiProperty({ type: [Number], description: 'Array of Image IDs already uploaded' })
+    @IsArray()
+    @IsNumber({}, { each: true })
+    @IsOptional()
+    imageIds?: number[];
+}

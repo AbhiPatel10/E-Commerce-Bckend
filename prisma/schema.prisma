@@ -8,18 +8,22 @@ datasource db {
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?  @db.Text
-  price       Decimal  @db.Decimal(10, 2)
-  stock       Int      @default(0)
-  images      Json? // Array of image URLs
-  categoryId  Int
-  category    Category @relation(fields: [categoryId], references: [id])
-  brandId     Int?
-  brand       Brand?   @relation(fields: [brandId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 Int           @id @default(autoincrement())
+  name               String
+  shortDescription   String?       @db.Text
+  description        String?       @db.Text
+  price              Decimal       @db.Decimal(10, 2)
+  discountPercentage Decimal       @default(0) @db.Decimal(5, 2)
+  vatPercentage      Decimal       @default(0) @db.Decimal(5, 2)
+  stock              Int           @default(0)
+  status             ProductStatus @default(ACTIVE)
+  categoryId         Int
+  category           Category      @relation(fields: [categoryId], references: [id])
+  brandId            Int?
+  brand              Brand?        @relation(fields: [brandId], references: [id])
+  images             Image[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   cartItems  CartItem[]
   orderItems OrderItem[]
@@ -57,6 +61,8 @@ model Image {
   url         String   @db.Text
   providerKey String // publicId for Cloudinary, Key for S3
   brand       Brand?
+  productId   Int?
+  product     Product? @relation(fields: [productId], references: [id])
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
@@ -148,4 +154,9 @@ enum OrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
 }
