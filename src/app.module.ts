@@ -10,15 +10,21 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { InventoryModule } from './modules/inventory/inventory.module';
 import { HealthModule } from './health/health.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { AdminAuthModule } from './modules/admin/auth/admin-auth.module';
 
 import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
+import { BrandsModule } from './modules/brands/brands.module';
+import { ImagesModule } from './modules/images/images.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     DatabaseModule,
-    ProductsModule, CategoriesModule, CartModule, CheckoutModule, OrdersModule, PaymentsModule, ReviewsModule, InventoryModule, HealthModule
+    AuthModule,
+    AdminAuthModule,
+    ProductsModule, CategoriesModule, BrandsModule, ImagesModule, CartModule, CheckoutModule, OrdersModule, PaymentsModule, ReviewsModule, InventoryModule, HealthModule
   ],
   controllers: [AppController],
   providers: [AppService],

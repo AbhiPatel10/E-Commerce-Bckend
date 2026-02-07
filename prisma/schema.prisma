@@ -1,38 +1,70 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "client"
 }
 
 datasource db {
   provider = "mysql"
-  url      = env("DATABASE_URL")
 }
 
 model Product {
-  id          Int      @id @default(autoincrement())
-  name        String
-  description String?  @db.Text
-  price       Decimal  @db.Decimal(10, 2)
-  stock       Int      @default(0)
-  imageUrl    String?
-  categoryId  Int
-  category    Category @relation(fields: [categoryId], references: [id])
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                 Int           @id @default(autoincrement())
+  name               String
+  shortDescription   String?       @db.Text
+  description        String?       @db.Text
+  price              Decimal       @db.Decimal(10, 2)
+  discountPercentage Decimal       @default(0) @db.Decimal(5, 2)
+  vatPercentage      Decimal       @default(0) @db.Decimal(5, 2)
+  stock              Int           @default(0)
+  status             ProductStatus @default(ACTIVE)
+  categoryId         Int
+  category           Category      @relation(fields: [categoryId], references: [id])
+  brandId            Int?
+  brand              Brand?        @relation(fields: [brandId], references: [id])
+  images             Image[]
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
 
   cartItems  CartItem[]
   orderItems OrderItem[]
   reviews    Review[]
 
   @@index([categoryId])
+  @@index([brandId])
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  slug      String    @unique
-  products  Product[]
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?   @db.Text
+  slug        String    @unique
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Brand {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String?   @db.Text
+  logoImageId Int?      @unique
+  logoImage   Image?    @relation(fields: [logoImageId], references: [id])
+  slug        String    @unique
+  products    Product[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Image {
+  id          Int      @id @default(autoincrement())
+  provider    String // e.g., 'cloudinary', 's3'
+  url         String   @db.Text
+  providerKey String // publicId for Cloudinary, Key for S3
+  brand       Brand?
+  productId   Int?
+  product     Product? @relation(fields: [productId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Cart {
@@ -108,6 +140,15 @@ model Review {
   @@index([productId])
 }
 
+model Admin {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
 enum OrderStatus {
   PENDING
   PAID
@@ -117,14 +158,7 @@ enum OrderStatus {
   CANCELLED
 }
 
-model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  name      String
-  role      String   @default("USER")
-  addresses Json?
-  orders    Order[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
 }

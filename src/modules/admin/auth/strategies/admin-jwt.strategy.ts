@@ -1,0 +1,23 @@
+import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { PassportStrategy } from '@nestjs/passport';
+import { ExtractJwt, Strategy } from 'passport-jwt';
+import { AdminAuthService } from '../admin-auth.service';
+
+@Injectable()
+export class AdminJwtStrategy extends PassportStrategy(Strategy, 'admin-jwt') {
+    constructor(private adminAuthService: AdminAuthService) {
+        super({
+            jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+            ignoreExpiration: false,
+            secretOrKey: process.env.JWT_SECRET || 'admin-secret',
+        });
+    }
+
+    async validate(payload: any) {
+        const admin = await this.adminAuthService.validateAdmin(payload.sub);
+        if (!admin) {
+            throw new UnauthorizedException();
+        }
+        return admin;
+    }
+}

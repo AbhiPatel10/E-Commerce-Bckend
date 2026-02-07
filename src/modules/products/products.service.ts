@@ -1,64 +1,133 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
-import { CreateProductDto, UpdateProductDto } from './dto/create-product.dto';
+import { CreateProductDto } from './dto/create-product.dto';
+import { UpdateProductDto } from './dto/update-product.dto';
+import { ServiceResponse } from '../../common/interfaces/service-response.interface';
+import { Product } from '@prisma/client';
 
 @Injectable()
 export class ProductsService {
     constructor(private prisma: PrismaService) { }
 
-    async findAll(page: number = 1, limit: number = 10) {
+    async create(createProductDto: CreateProductDto): Promise<ServiceResponse<Product>> {
+        const { imageIds, ...productData } = createProductDto;
+
+        const product = await this.prisma.product.create({
+            data: {
+                ...productData,
+                images: imageIds ? {
+                    connect: imageIds.map(id => ({ id }))
+                } : undefined,
+            },
+            include: {
+                images: true,
+                category: true,
+                brand: true,
+            },
+        });
+
+        return {
+            success: true,
+            message: 'Product created successfully',
+            data: product,
+        };
+    }
+
+    async findAll(page: number = 1, limit: number = 10): Promise<ServiceResponse<{ products: Product[], total: number }>> {
         const skip = (page - 1) * limit;
-        const [data, total] = await Promise.all([
+        const [products, total] = await Promise.all([
             this.prisma.product.findMany({
                 skip,
                 take: Number(limit),
-                include: { category: true },
-                orderBy: { createdAt: 'desc' } // Newest first
+                include: {
+                    images: true,
+                    category: true,
+                    brand: true,
+                },
+                orderBy: { createdAt: 'desc' },
             }),
             this.prisma.product.count(),
         ]);
-        return { data, total, page, limit };
+
+        return {
+            success: true,
+            message: 'Products fetched successfully',
+            data: { products, total },
+        };
     }
 
-    async findOne(id: number) {
-        return this.prisma.product.findUnique({
+    async findOne(id: number): Promise<ServiceResponse<Product>> {
+        const product = await this.prisma.product.findUnique({
             where: { id },
-            include: { category: true },
-        });
-    }
-
-    async create(createProductDto: CreateProductDto) {
-        // Ensure category exists? Prisma will throw if not.
-        return this.prisma.product.create({
-            data: {
-                name: createProductDto.name,
-                description: createProductDto.description,
-                price: createProductDto.price,
-                stock: createProductDto.stock,
-                imageUrl: createProductDto.imageUrl,
-                category: { connect: { id: createProductDto.categoryId } }
+            include: {
+                images: true,
+                category: true,
+                brand: true,
             },
         });
+
+        if (!product) {
+            throw new NotFoundException(`Product with ID ${id} not found`);
+        }
+
+        return {
+            success: true,
+            message: 'Product fetched successfully',
+            data: product,
+        };
     }
 
-    async update(id: number, updateProductDto: UpdateProductDto) {
-        return this.prisma.product.update({
+    async update(id: number, updateProductDto: UpdateProductDto): Promise<ServiceResponse<Product>> {
+        const existingProduct = await this.prisma.product.findUnique({
+            where: { id },
+        });
+
+        if (!existingProduct) {
+            throw new NotFoundException(`Product with ID ${id} not found`);
+        }
+
+        const { imageIds, ...productData } = updateProductDto;
+
+        const updatedProduct = await this.prisma.product.update({
             where: { id },
             data: {
-                name: updateProductDto.name,
-                description: updateProductDto.description,
-                price: updateProductDto.price,
-                stock: updateProductDto.stock,
-                imageUrl: updateProductDto.imageUrl,
-                categoryId: updateProductDto.categoryId // Direct update works too
+                ...productData,
+                images: imageIds ? {
+                    set: imageIds.map(id => ({ id }))
+                } : undefined,
+            },
+            include: {
+                images: true,
+                category: true,
+                brand: true,
             },
         });
+
+        return {
+            success: true,
+            message: 'Product updated successfully',
+            data: updatedProduct,
+        };
     }
 
-    async remove(id: number) {
-        return this.prisma.product.delete({
+    async remove(id: number): Promise<ServiceResponse<null>> {
+        const product = await this.prisma.product.findUnique({
             where: { id },
         });
+
+        if (!product) {
+            throw new NotFoundException(`Product with ID ${id} not found`);
+        }
+
+        await this.prisma.product.delete({
+            where: { id },
+        });
+
+        return {
+            success: true,
+            message: 'Product deleted successfully',
+            data: null,
+        };
     }
 }
 
