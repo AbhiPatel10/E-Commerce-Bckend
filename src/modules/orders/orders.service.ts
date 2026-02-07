@@ -18,7 +18,7 @@ export class OrdersService {
             where: { id },
             include: {
                 user: true,
-                address: true,
+                customer: true,
                 items: { include: { product: true } }
             },
         });

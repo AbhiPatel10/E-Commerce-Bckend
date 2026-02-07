@@ -8,7 +8,10 @@ export class CategoriesService {
 
     async create(createCategoryDto: CreateCategoryDto) {
         return this.prisma.category.create({
-            data: createCategoryDto,
+            data: {
+                ...createCategoryDto,
+                slug: createCategoryDto.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, ''),
+            },
         });
     }
 
