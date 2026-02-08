@@ -1,12 +1,14 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service';
 import { AddToCartDto, UpdateCartItemDto } from './dto/cart.dto';
+import { ServiceResponse } from '../../common/interfaces/service-response.interface';
+import { Cart } from '@prisma/client';
 
 @Injectable()
 export class CartService {
     constructor(private prisma: PrismaService) { }
 
-    async getCart(sessionId: string) {
+    async getCart(sessionId: string): Promise<ServiceResponse<any>> {
         const cart = await this.prisma.cart.findUnique({
             where: { sessionId },
             include: {
@@ -17,16 +19,22 @@ export class CartService {
         });
 
         if (!cart) {
-            // Return empty structure if no cart exists yet
-            return { sessionId, items: [], total: 0 };
+            return {
+                success: true,
+                message: 'Empty cart returned',
+                data: { sessionId, items: [], total: 0 }
+            };
         }
 
         const total = cart.items.reduce((sum, item) => {
-            // Use current product price for calculation, or snapshot if we wanted strict locking
             return sum + Number(item.product.price) * item.quantity;
         }, 0);
 
-        return { ...cart, total };
+        return {
+            success: true,
+            message: 'Cart fetched successfully',
+            data: { ...cart, total }
+        };
     }
 
     async addToCart(dto: AddToCartDto) {
@@ -106,11 +114,15 @@ export class CartService {
         return this.getCart(sessionId);
     }
 
-    async deleteCart(sessionId: string) {
+    async deleteCart(sessionId: string): Promise<ServiceResponse<null>> {
         const cart = await this.prisma.cart.findUnique({ where: { sessionId } });
         if (cart) {
             await this.prisma.cart.delete({ where: { id: cart.id } });
         }
-        return { message: 'Cart cleared' };
+        return {
+            success: true,
+            message: 'Cart cleared successfully',
+            data: null
+        };
     }
 }

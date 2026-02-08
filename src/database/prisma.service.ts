@@ -12,13 +12,18 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
             user: url.username,
             password: url.password,
             database: url.pathname.substring(1),
-            connectionLimit: 5,
+            connectionLimit: 2,
         });
         super({ adapter });
     }
 
     async onModuleInit() {
-        await this.$connect();
+        try {
+            await this.$connect();
+            console.log('Database connected successfully');
+        } catch (error) {
+            console.error('Failed to connect to database:', error);
+        }
     }
 
     async onModuleDestroy() {

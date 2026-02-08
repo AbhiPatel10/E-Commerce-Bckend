@@ -11,6 +11,11 @@ export class CreateProductDto {
     @ApiPropertyOptional()
     @IsString()
     @IsOptional()
+    slug?: string;
+
+    @ApiPropertyOptional()
+    @IsString()
+    @IsOptional()
     shortDescription?: string;
 
     @ApiPropertyOptional()

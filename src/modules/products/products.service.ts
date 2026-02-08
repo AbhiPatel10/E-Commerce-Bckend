@@ -12,9 +12,12 @@ export class ProductsService {
     async create(createProductDto: CreateProductDto): Promise<ServiceResponse<Product>> {
         const { imageIds, ...productData } = createProductDto;
 
+        const slug = createProductDto.slug || productData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+
         const product = await this.prisma.product.create({
             data: {
                 ...productData,
+                slug,
                 images: imageIds ? {
                     connect: imageIds.map(id => ({ id }))
                 } : undefined,
@@ -88,10 +91,16 @@ export class ProductsService {
 
         const { imageIds, ...productData } = updateProductDto;
 
+        let slug = updateProductDto.slug;
+        if (!slug && productData.name) {
+            slug = productData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+        }
+
         const updatedProduct = await this.prisma.product.update({
             where: { id },
             data: {
                 ...productData,
+                ...(slug ? { slug } : {}),
                 images: imageIds ? {
                     set: imageIds.map(id => ({ id }))
                 } : undefined,

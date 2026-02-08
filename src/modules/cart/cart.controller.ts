@@ -8,7 +8,13 @@ export class CartController {
 
     @Get()
     getCart(@Query('sessionId') sessionId: string) {
-        if (!sessionId) return { message: 'Session ID required' };
+        if (!sessionId) {
+            return {
+                success: false,
+                message: 'Session ID required',
+                data: null
+            };
+        }
         return this.cartService.getCart(sessionId);
     }
 

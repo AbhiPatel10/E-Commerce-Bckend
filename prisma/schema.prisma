@@ -1,6 +1,5 @@
 generator client {
-  provider   = "prisma-client-js"
-  engineType = "client"
+  provider = "prisma-client-js"
 }
 
 datasource db {
@@ -22,6 +21,8 @@ model Product {
   brandId            Int?
   brand              Brand?        @relation(fields: [brandId], references: [id])
   images             Image[]
+  slug               String        @unique
+  features           Json?
   createdAt          DateTime      @default(now())
   updatedAt          DateTime      @updatedAt
 
@@ -161,4 +162,16 @@ enum OrderStatus {
 enum ProductStatus {
   ACTIVE
   INACTIVE
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("USER")
+  addresses Json?
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

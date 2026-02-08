@@ -2,6 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, InternalServerError
 import { PrismaService } from '../../database/prisma.service';
 import { PaymentsService } from '../payments/payments.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { ServiceResponse } from '../../common/interfaces/service-response.interface';
 
 @Injectable()
 export class CheckoutService {
@@ -10,7 +11,7 @@ export class CheckoutService {
         private paymentsService: PaymentsService
     ) { }
 
-    async processCheckout(dto: CheckoutDto) {
+    async processCheckout(dto: CheckoutDto): Promise<ServiceResponse<any>> {
         const { sessionId, ...customerDetails } = dto;
 
         // 1. Validate Cart
@@ -74,9 +75,13 @@ export class CheckoutService {
             });
 
             return {
-                orderNumber: order.orderNumber,
-                clientSecret: paymentIntent.client_secret,
-                totalAmount,
+                success: true,
+                message: 'Checkout processed successfully',
+                data: {
+                    orderNumber: order.orderNumber,
+                    clientSecret: paymentIntent.client_secret,
+                    totalAmount,
+                }
             };
         } catch (error) {
             throw new InternalServerErrorException('Payment initialization failed');
