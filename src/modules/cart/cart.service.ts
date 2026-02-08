@@ -37,8 +37,8 @@ export class CartService {
         };
     }
 
-    async addToCart(dto: AddToCartDto) {
-        const { sessionId, productId, quantity } = dto;
+    async addToCart(sessionId: string, dto: AddToCartDto) {
+        const { productId, quantity } = dto;
 
         // 1. Check Product Stock
         const product = await this.prisma.product.findUnique({ where: { id: productId } });
@@ -52,7 +52,6 @@ export class CartService {
         }
 
         // 3. Upsert Cart Item
-        // Note: We snapshot price here, but real checkout should verify again
         const existingItem = await this.prisma.cartItem.findUnique({
             where: {
                 cartId_productId: {
@@ -81,8 +80,8 @@ export class CartService {
         return this.getCart(sessionId);
     }
 
-    async updateItem(dto: UpdateCartItemDto) {
-        const { sessionId, productId, quantity } = dto;
+    async updateItem(sessionId: string, productId: number, dto: UpdateCartItemDto) {
+        const { quantity } = dto;
 
         const cart = await this.prisma.cart.findUnique({ where: { sessionId } });
         if (!cart) throw new NotFoundException('Cart not found');
