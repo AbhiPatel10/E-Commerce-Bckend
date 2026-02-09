@@ -102,6 +102,7 @@ model Order {
   updatedAt       DateTime         @updatedAt
   userId          Int?
   user            User?            @relation(fields: [userId], references: [id])
+  payment         Payment?
 }
 
 model OrderItem {
@@ -174,4 +175,54 @@ model User {
   orders    Order[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  stripeCustomer StripeCustomer?
+}
+
+model StripeCustomer {
+  id               Int      @id @default(autoincrement())
+  userId           Int      @unique
+  user             User     @relation(fields: [userId], references: [id])
+  stripeCustomerId String   @unique // Stripe Customer ID (cus_...)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Payment {
+  id              Int           @id @default(autoincrement())
+  orderId         Int?          @unique
+  order           Order?        @relation(fields: [orderId], references: [id])
+  stripePaymentId String        @unique // Stripe PaymentIntent ID (pi_...)
+  amount          Decimal       @db.Decimal(10, 2)
+  currency        String        @default("usd")
+  status          PaymentStatus @default(PENDING)
+  metadata        Json?
+  customerEmail   String? // Store email for guest checkout tracking before order
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  refunds         Refund[]
+}
+
+model Refund {
+  id             Int      @id @default(autoincrement())
+  paymentId      Int
+  payment        Payment  @relation(fields: [paymentId], references: [id])
+  stripeRefundId String   @unique // Stripe Refund ID (re_...)
+  amount         Decimal  @db.Decimal(10, 2)
+  reason         String?
+  status         String // succeeded, pending, failed, canceled
+  createdAt      DateTime @default(now())
+}
+
+model StripeEvent {
+  id        String   @id // Stripe Event ID (evt_...)
+  type      String // payment_intent.succeeded, etc.
+  createdAt DateTime @default(now())
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  CANCELED
 }

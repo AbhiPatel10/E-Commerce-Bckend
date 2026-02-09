@@ -38,6 +38,15 @@ export class ProductsController {
         return this.productsService.findOne(id);
     }
 
+    @Get('slug/:slug')
+    @Version('1')
+    @ApiOperation({ summary: 'Get product by slug' })
+    @ApiResponse({ status: 200, description: 'Return single product' })
+    @ApiResponse({ status: 404, description: 'Product not found' })
+    findBySlug(@Param('slug') slug: string) {
+        return this.productsService.findBySlug(slug);
+    }
+
     @Patch(':id')
     @Version('1')
     @UseGuards(AdminJwtAuthGuard)

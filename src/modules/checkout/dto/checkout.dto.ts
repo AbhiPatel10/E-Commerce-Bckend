@@ -1,9 +1,7 @@
-import { IsString, IsEmail, IsNotEmpty, IsUUID, Matches } from 'class-validator';
+import { IsString, IsEmail, IsNotEmpty, IsUUID, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
 
-export class CheckoutDto {
-    @IsUUID(4)
-    sessionId: string;
-
+export class CustomerDetailsDto {
     @IsString()
     @IsNotEmpty()
     fullName: string;
@@ -34,4 +32,13 @@ export class CheckoutDto {
     @IsString()
     @IsNotEmpty()
     pincode: string;
+}
+
+export class CheckoutDto {
+    @IsUUID(4)
+    sessionId: string;
+
+    @ValidateNested()
+    @Type(() => CustomerDetailsDto)
+    customerDetails: CustomerDetailsDto;
 }
