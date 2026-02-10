@@ -13,7 +13,11 @@ export class CartService {
             where: { sessionId },
             include: {
                 items: {
-                    include: { product: true },
+                    include: {
+                        product: {
+                            include: { images: true }
+                        }
+                    },
                 },
             },
         });
