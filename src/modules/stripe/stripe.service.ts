@@ -127,31 +127,19 @@ export class StripeService {
     }
 
     // Confirm Payment (Simulation)
-    async confirmPayment(paymentIntentId: string, orderNumber: string) {
-        const order = await this.prisma.order.findUnique({
-            where: { orderNumber },
-            include: { payment: true },
-        });
+    async confirmPayment(paymentIntentId: string, orderNumber?: string) {
+        // Retrieve the payment intent from Stripe to get the latest status and metadata
+        try {
+            const paymentIntent = await this.stripe.paymentIntents.retrieve(paymentIntentId);
 
-        if (!order) {
-            throw new BadRequestException('Order not found');
+            if (paymentIntent.status === 'succeeded') {
+                return await this.handlePaymentSuccess(paymentIntent);
+            } else {
+                return { success: false, message: `Payment status is ${paymentIntent.status}` };
+            }
+        } catch (error) {
+            throw new InternalServerErrorException('Failed to retrieve payment intent');
         }
-
-        // In a real scenario, we would confirm via Stripe API or rely on webhooks.
-        // For simulation, we manually update the status.
-
-        await this.prisma.$transaction([
-            this.prisma.payment.updateMany({
-                where: { stripePaymentId: paymentIntentId },
-                data: { status: 'SUCCEEDED' },
-            }),
-            this.prisma.order.update({
-                where: { id: order.id },
-                data: { status: 'PAID' },
-            }),
-        ]);
-
-        return { success: true, message: 'Payment confirmed successfully' };
     }
 
     // Handle Refund
@@ -233,7 +221,7 @@ export class StripeService {
         }
     }
 
-    private async handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
+    public async handlePaymentSuccess(paymentIntent: Stripe.PaymentIntent) {
         const orderId = Number(paymentIntent.metadata.orderId);
 
         // Scenario A: Order already exists (Legacy or created via other means)

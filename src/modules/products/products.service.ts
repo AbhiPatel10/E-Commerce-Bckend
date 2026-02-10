@@ -36,10 +36,44 @@ export class ProductsService {
         };
     }
 
-    async findAll(page: number = 1, limit: number = 10): Promise<ServiceResponse<{ products: Product[], total: number }>> {
+    async findAll(
+        page: number = 1,
+        limit: number = 10,
+        filters?: { category?: string; brand?: string; minPrice?: number; maxPrice?: number; search?: string }
+    ): Promise<ServiceResponse<{ products: Product[], total: number }>> {
         const skip = (page - 1) * limit;
+
+        const where: any = { status: 'ACTIVE' }; // Only active products
+
+        if (filters?.category && filters.category !== 'All') {
+            where.category = { name: filters.category };
+        }
+
+        if (filters?.brand && filters.brand !== 'All') {
+            where.brand = { name: filters.brand };
+        }
+
+        if (filters?.minPrice !== undefined || filters?.maxPrice !== undefined) {
+            const min = Number(filters.minPrice);
+            const max = Number(filters.maxPrice);
+
+            if (!isNaN(min) || !isNaN(max)) {
+                where.price = {};
+                if (!isNaN(min)) where.price.gte = min;
+                if (!isNaN(max)) where.price.lte = max;
+            }
+        }
+
+        if (filters?.search) {
+            where.OR = [
+                { name: { contains: filters.search } }, // Case-insensitive in newer Prisma versions or need mode: 'insensitive'
+                { description: { contains: filters.search } },
+            ];
+        }
+
         const [products, total] = await Promise.all([
             this.prisma.product.findMany({
+                where,
                 skip,
                 take: Number(limit),
                 include: {
@@ -49,7 +83,7 @@ export class ProductsService {
                 },
                 orderBy: { createdAt: 'desc' },
             }),
-            this.prisma.product.count(),
+            this.prisma.product.count({ where }),
         ]);
 
         return {
