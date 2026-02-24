@@ -1,9 +1,4 @@
 {
-    "functions": {
-        "dist/src/main.js": {
-            "runtime": "nodejs@20"
-        }
-    },
     "routes": [
         {
             "src": "/(.*)",
