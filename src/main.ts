@@ -34,7 +34,7 @@ async function bootstrap() {
   return serverlessExpress({ app: expressApp });
 }
 
-export const handler = async (event, context) => {
+export default async function handler(event, context) {
   try {
     if (!cachedServer) {
       cachedServer = await bootstrap();
@@ -47,4 +47,4 @@ export const handler = async (event, context) => {
       body: JSON.stringify({ error: 'Server failed to start' }),
     };
   }
-};
+}
