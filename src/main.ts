@@ -2,18 +2,18 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import serverlessExpress from '@vendia/serverless-express';
 import express from 'express';
 
-let cachedServer: any;
+let cachedApp: any;
 
-async function bootstrap() {
+async function createServer() {
+  if (cachedApp) return cachedApp;
+
   const expressApp = express();
 
-  const app = await NestFactory.create(
-    AppModule,
-    new ExpressAdapter(expressApp),
-  );
+  const adapter = new ExpressAdapter(expressApp);
+
+  const app = await NestFactory.create(AppModule, adapter);
 
   app.setGlobalPrefix('api');
   app.enableVersioning({
@@ -31,15 +31,16 @@ async function bootstrap() {
 
   await app.init();
 
-  return serverlessExpress({ app: expressApp });
+  cachedApp = expressApp;
+  return cachedApp;
 }
 
 export default async function handler(event, context) {
   try {
-    if (!cachedServer) {
-      cachedServer = await bootstrap();
+    if (!cachedApp) {
+      cachedApp = await createServer();
     }
-    return cachedServer(event, context);
+    return cachedApp(event, context);
   } catch (err) {
     console.error('BOOT ERROR:', err);
     return {
