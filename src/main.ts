@@ -2,7 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import express from 'express';
+import express, { Response } from 'express';
 
 let cachedApp: any;
 
@@ -19,6 +19,10 @@ async function createServer() {
   app.enableVersioning({
     type: VersioningType.URI,
     defaultVersion: '1',
+  });
+
+  app.use((req: Request, res: Response) => {
+    res.status(404).json({ message: "This endpoint is not available in Biizline." });
   });
 
   app.useGlobalPipes(
