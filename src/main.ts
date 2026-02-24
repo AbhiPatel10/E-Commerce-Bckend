@@ -22,7 +22,7 @@ async function createServer() {
   });
 
   app.use((req: Request, res: Response) => {
-    res.status(404).json({ message: "This endpoint is not available in Biizline." });
+    res.status(404).json({ message: "This endpoint is not available in E-commerce." });
   });
 
   app.useGlobalPipes(
