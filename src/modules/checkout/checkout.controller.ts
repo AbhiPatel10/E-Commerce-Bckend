@@ -1,14 +1,21 @@
 import { Controller, Post, Body, UsePipes, ValidationPipe } from '@nestjs/common';
 import { CheckoutService } from './checkout.service';
 import { CheckoutDto } from './dto/checkout.dto';
+import { InitiateCheckoutDto } from './dto/initiate-checkout.dto';
 
 @Controller('checkout')
 export class CheckoutController {
-    constructor(private checkoutService: CheckoutService) { }
+    constructor(private readonly checkoutService: CheckoutService) { }
 
-    @Post()
+    @Post('initiate')
     @UsePipes(new ValidationPipe({ transform: true }))
-    checkout(@Body() dto: CheckoutDto) {
+    initiate(@Body() dto: InitiateCheckoutDto) {
+        return this.checkoutService.initiateCheckout(dto);
+    }
+
+    @Post('create-order')
+    @UsePipes(new ValidationPipe({ transform: true }))
+    createOrder(@Body() dto: CheckoutDto) {
         return this.checkoutService.processCheckout(dto);
     }
 }

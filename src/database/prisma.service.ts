@@ -5,20 +5,24 @@ import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
     constructor() {
-        const url = new URL(process.env.DATABASE_URL!);
         const adapter = new PrismaMariaDb({
-            host: url.hostname,
-            port: parseInt(url.port) || 3306,
-            user: url.username,
-            password: url.password,
-            database: url.pathname.substring(1),
-            connectionLimit: 5,
+            host: process.env.DATABASE_HOST,
+            port: Number(process.env.DATABASE_PORT ?? 0),
+            user: process.env.DATABASE_USER,
+            password: process.env.DATABASE_PASSWORD,
+            database: process.env.DATABASE_NAME,
+            connectionLimit: 10,
         });
         super({ adapter });
     }
 
     async onModuleInit() {
-        await this.$connect();
+        try {
+            await this.$connect();
+            console.log('Database connected successfully');
+        } catch (error) {
+            console.error('Failed to connect to database:', error);
+        }
     }
 
     async onModuleDestroy() {

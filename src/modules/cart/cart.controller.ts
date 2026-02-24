@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Delete, Query, UsePipes, ValidationPipe, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Delete, Param, Patch, UsePipes, ValidationPipe, ParseIntPipe } from '@nestjs/common';
 import { CartService } from './cart.service';
 import { AddToCartDto, UpdateCartItemDto } from './dto/cart.dto';
 
@@ -6,31 +6,37 @@ import { AddToCartDto, UpdateCartItemDto } from './dto/cart.dto';
 export class CartController {
     constructor(private readonly cartService: CartService) { }
 
-    @Get()
-    getCart(@Query('sessionId') sessionId: string) {
-        if (!sessionId) return { message: 'Session ID required' };
+    @Get(':sessionId')
+    getCart(@Param('sessionId') sessionId: string) {
         return this.cartService.getCart(sessionId);
     }
 
-    @Post('add')
+    @Post(':sessionId/items')
     @UsePipes(new ValidationPipe({ transform: true }))
-    addToCart(@Body() dto: AddToCartDto) {
-        return this.cartService.addToCart(dto);
+    addToCart(@Param('sessionId') sessionId: string, @Body() dto: AddToCartDto) {
+        return this.cartService.addToCart(sessionId, dto);
     }
 
-    @Post('update')
+    @Patch(':sessionId/items/:productId')
     @UsePipes(new ValidationPipe({ transform: true }))
-    updateItem(@Body() dto: UpdateCartItemDto) {
-        return this.cartService.updateItem(dto);
+    updateItem(
+        @Param('sessionId') sessionId: string,
+        @Param('productId', ParseIntPipe) productId: number,
+        @Body() dto: UpdateCartItemDto
+    ) {
+        return this.cartService.updateItem(sessionId, productId, dto);
     }
 
-    @Delete('remove')
-    removeItem(@Query('sessionId') sessionId: string, @Query('productId', ParseIntPipe) productId: number) {
+    @Delete(':sessionId/items/:productId')
+    removeItem(
+        @Param('sessionId') sessionId: string,
+        @Param('productId', ParseIntPipe) productId: number
+    ) {
         return this.cartService.removeItem(sessionId, productId);
     }
 
-    @Delete('clear')
-    clearCart(@Query('sessionId') sessionId: string) {
+    @Delete(':sessionId')
+    clearCart(@Param('sessionId') sessionId: string) {
         return this.cartService.deleteCart(sessionId);
     }
 }

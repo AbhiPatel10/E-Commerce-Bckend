@@ -17,6 +17,8 @@ import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
 import { BrandsModule } from './modules/brands/brands.module';
 import { ImagesModule } from './modules/images/images.module';
+import { StatsModule } from './modules/admin/stats/stats.module';
+import { StripeModule } from './modules/stripe/stripe.module';
 
 @Module({
   imports: [
@@ -24,7 +26,8 @@ import { ImagesModule } from './modules/images/images.module';
     DatabaseModule,
     AuthModule,
     AdminAuthModule,
-    ProductsModule, CategoriesModule, BrandsModule, ImagesModule, CartModule, CheckoutModule, OrdersModule, PaymentsModule, ReviewsModule, InventoryModule, HealthModule
+    ProductsModule, CategoriesModule, BrandsModule, ImagesModule, CartModule, CheckoutModule, OrdersModule, PaymentsModule, ReviewsModule, InventoryModule, HealthModule, StatsModule,
+    StripeModule
   ],
   controllers: [AppController],
   providers: [AppService],
