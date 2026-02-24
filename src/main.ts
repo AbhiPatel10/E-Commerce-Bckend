@@ -35,8 +35,16 @@ async function bootstrap() {
 }
 
 export const handler = async (event, context) => {
-  if (!cachedServer) {
-    cachedServer = await bootstrap();
+  try {
+    if (!cachedServer) {
+      cachedServer = await bootstrap();
+    }
+    return cachedServer(event, context);
+  } catch (err) {
+    console.error('BOOT ERROR:', err);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: 'Server failed to start' }),
+    };
   }
-  return cachedServer(event, context);
 };
