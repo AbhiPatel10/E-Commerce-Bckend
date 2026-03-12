@@ -1,125 +1,126 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service';
-import { CreateCategoryDto } from './dto/create-category.dto';
-import { UpdateCategoryDto } from './dto/update-category.dto';
-import { ServiceResponse } from '../../common/interfaces/service-response.interface';
-import { Category } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Category } from "../../entities";
+import { CreateCategoryDto } from "./dto/create-category.dto";
+import { UpdateCategoryDto } from "./dto/update-category.dto";
+import { ServiceResponse } from "../../common/interfaces/service-response.interface";
 
 @Injectable()
 export class CategoriesService {
-    constructor(private prisma: PrismaService) { }
+  constructor(
+    @InjectRepository(Category)
+    private categoryRepository: Repository<Category>,
+  ) {}
 
-    //#region CREATE CATEGORY
-    async create(createCategoryDto: CreateCategoryDto): Promise<ServiceResponse<Category>> {
-        const slug = this.generateSlug(createCategoryDto.name);
+  //#region CREATE CATEGORY
+  async create(
+    createCategoryDto: CreateCategoryDto,
+  ): Promise<ServiceResponse<Category>> {
+    const slug = this.generateSlug(createCategoryDto.name);
 
-        const category = await this.prisma.category.create({
-            data: {
-                ...createCategoryDto,
-                slug,
-            },
-        });
+    const category = this.categoryRepository.create({
+      ...createCategoryDto,
+      slug,
+    });
 
-        return {
-            success: true,
-            message: 'Category created successfully',
-            data: category,
-        };
+    const savedCategory = await this.categoryRepository.save(category);
+
+    return {
+      success: true,
+      message: "Category created successfully",
+      data: savedCategory,
+    };
+  }
+  //#endregion
+
+  //#region FIND CATEGORIES
+  async findAll(): Promise<ServiceResponse<Category[]>> {
+    const categories = await this.categoryRepository
+      .createQueryBuilder("category")
+      .loadRelationCountAndMap("category.productCount", "category.products")
+      .getMany();
+
+    return {
+      success: true,
+      message: "Categories fetched successfully",
+      data: categories,
+    };
+  }
+
+  async findOne(id: number): Promise<ServiceResponse<Category>> {
+    const category = await this.categoryRepository.findOne({
+      where: { id },
+      relations: ["products"],
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
     }
-    //#endregion
 
-    //#region FIND CATEGORIES
-    async findAll(): Promise<ServiceResponse<Category[]>> {
-        const categories = await this.prisma.category.findMany({
-            include: {
-                _count: {
-                    select: { products: true },
-                },
-            },
-        });
+    return {
+      success: true,
+      message: "Category fetched successfully",
+      data: category,
+    };
+  }
+  //#endregion
 
-        return {
-            success: true,
-            message: 'Categories fetched successfully',
-            data: categories,
-        };
+  //#region UPDATE CATEGORY
+  async update(
+    id: number,
+    updateCategoryDto: UpdateCategoryDto,
+  ): Promise<ServiceResponse<Category>> {
+    const category = await this.categoryRepository.findOne({
+      where: { id },
+    });
+
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
     }
 
-    async findOne(id: number): Promise<ServiceResponse<Category>> {
-        const category = await this.prisma.category.findUnique({
-            where: { id },
-            include: { products: true },
-        });
-
-        if (!category) {
-            throw new NotFoundException(`Category with ID ${id} not found`);
-        }
-
-        return {
-            success: true,
-            message: 'Category fetched successfully',
-            data: category,
-        };
+    Object.assign(category, updateCategoryDto);
+    if (updateCategoryDto.name) {
+      category.slug = this.generateSlug(updateCategoryDto.name);
     }
-    //#endregion
 
-    //#region UPDATE CATEGORY
-    async update(id: number, updateCategoryDto: UpdateCategoryDto): Promise<ServiceResponse<Category>> {
-        const existingCategory = await this.prisma.category.findUnique({
-            where: { id },
-        });
+    const updatedCategory = await this.categoryRepository.save(category);
 
-        if (!existingCategory) {
-            throw new NotFoundException(`Category with ID ${id} not found`);
-        }
+    return {
+      success: true,
+      message: "Category updated successfully",
+      data: updatedCategory,
+    };
+  }
+  //#endregion
 
-        const data: any = { ...updateCategoryDto };
-        if (updateCategoryDto.name) {
-            data.slug = this.generateSlug(updateCategoryDto.name);
-        }
+  //#region DELETE CATEGORY
+  async remove(id: number): Promise<ServiceResponse<null>> {
+    const category = await this.categoryRepository.findOne({
+      where: { id },
+    });
 
-        const updatedCategory = await this.prisma.category.update({
-            where: { id },
-            data,
-        });
-
-        return {
-            success: true,
-            message: 'Category updated successfully',
-            data: updatedCategory,
-        };
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
     }
-    //#endregion
 
-    //#region DELETE CATEGORY
-    async remove(id: number): Promise<ServiceResponse<null>> {
-        const existingCategory = await this.prisma.category.findUnique({
-            where: { id },
-        });
+    await this.categoryRepository.remove(category);
 
-        if (!existingCategory) {
-            throw new NotFoundException(`Category with ID ${id} not found`);
-        }
+    return {
+      success: true,
+      message: "Category deleted successfully",
+      data: null,
+    };
+  }
+  //#endregion
 
-        await this.prisma.category.delete({
-            where: { id },
-        });
-
-        return {
-            success: true,
-            message: 'Category deleted successfully',
-            data: null,
-        };
-    }
-    //#endregion
-
-    //#region HELPERS
-    private generateSlug(name: string): string {
-        return name
-            .toLowerCase()
-            .trim()
-            .replace(/ /g, '-')
-            .replace(/[^\w-]+/g, '');
-    }
-    //#endregion
+  //#region HELPERS
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/ /g, "-")
+      .replace(/[^\w-]+/g, "");
+  }
+  //#endregion
 }

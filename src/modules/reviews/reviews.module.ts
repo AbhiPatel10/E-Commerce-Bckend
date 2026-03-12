@@ -1,10 +1,13 @@
-import { Module } from '@nestjs/common';
-import { ReviewsController } from './reviews.controller';
-import { ReviewsService } from './reviews.service';
-import { PrismaService } from '../../database/prisma.service';
+import { Module } from "@nestjs/common";
+import { TypeOrmModule } from "@nestjs/typeorm";
+import { ReviewsController } from "./reviews.controller";
+import { ReviewsService } from "./reviews.service";
+import { Review } from "../../entities";
 
 @Module({
+  imports: [TypeOrmModule.forFeature([Review])],
   controllers: [ReviewsController],
-  providers: [ReviewsService, PrismaService]
+  providers: [ReviewsService],
+  exports: [ReviewsService],
 })
-export class ReviewsModule { }
+export class ReviewsModule {}

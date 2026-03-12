@@ -1,7 +1,7 @@
-import { Module, Global } from '@nestjs/common';
-import { PaymentsService } from './payments.service';
-import { PaymentsController } from './payments.controller';
-import { StripeModule } from '../stripe/stripe.module';
+import { Module, Global } from "@nestjs/common";
+import { PaymentsService } from "./payments.service";
+import { PaymentsController } from "./payments.controller";
+import { StripeModule } from "../stripe/stripe.module";
 
 @Global()
 @Module({
@@ -10,4 +10,4 @@ import { StripeModule } from '../stripe/stripe.module';
   providers: [PaymentsService],
   exports: [PaymentsService],
 })
-export class PaymentsModule { }
+export class PaymentsModule {}

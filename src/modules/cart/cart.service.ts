@@ -1,131 +1,137 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service';
-import { AddToCartDto, UpdateCartItemDto } from './dto/cart.dto';
-import { ServiceResponse } from '../../common/interfaces/service-response.interface';
-import { Cart } from '@prisma/client';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Cart, CartItem, Product } from "../../entities";
+import { AddToCartDto, UpdateCartItemDto } from "./dto/cart.dto";
+import { ServiceResponse } from "../../common/interfaces/service-response.interface";
 
 @Injectable()
 export class CartService {
-    constructor(private prisma: PrismaService) { }
+  constructor(
+    @InjectRepository(Cart)
+    private cartRepository: Repository<Cart>,
+    @InjectRepository(CartItem)
+    private cartItemRepository: Repository<CartItem>,
+    @InjectRepository(Product)
+    private productRepository: Repository<Product>,
+  ) {}
 
-    async getCart(sessionId: string): Promise<ServiceResponse<any>> {
-        const cart = await this.prisma.cart.findUnique({
-            where: { sessionId },
-            include: {
-                items: {
-                    include: {
-                        product: {
-                            include: { images: true }
-                        }
-                    },
-                },
-            },
-        });
+  async getCart(sessionId: string): Promise<ServiceResponse<any>> {
+    const cart = await this.cartRepository.findOne({
+      where: { sessionId },
+      relations: ["items", "items.product", "items.product.images"],
+    });
 
-        if (!cart) {
-            return {
-                success: true,
-                message: 'Empty cart returned',
-                data: { sessionId, items: [], total: 0 }
-            };
-        }
-
-        const total = cart.items.reduce((sum, item) => {
-            return sum + Number(item.product.price) * item.quantity;
-        }, 0);
-
-        return {
-            success: true,
-            message: 'Cart fetched successfully',
-            data: { ...cart, total }
-        };
+    if (!cart) {
+      return {
+        success: true,
+        message: "Empty cart returned",
+        data: { sessionId, items: [], total: 0 },
+      };
     }
 
-    async addToCart(sessionId: string, dto: AddToCartDto) {
-        const { productId, quantity } = dto;
+    const total = cart.items.reduce((sum, item) => {
+      return sum + Number(item.product.price) * item.quantity;
+    }, 0);
 
-        // 1. Check Product Stock
-        const product = await this.prisma.product.findUnique({ where: { id: productId } });
-        if (!product) throw new NotFoundException('Product not found');
-        if (product.stock < quantity) throw new BadRequestException('Insufficient stock');
+    return {
+      success: true,
+      message: "Cart fetched successfully",
+      data: { ...cart, total },
+    };
+  }
 
-        // 2. Get or Create Cart
-        let cart = await this.prisma.cart.findUnique({ where: { sessionId } });
-        if (!cart) {
-            cart = await this.prisma.cart.create({ data: { sessionId } });
-        }
+  async addToCart(sessionId: string, dto: AddToCartDto) {
+    const { productId, quantity } = dto;
 
-        // 3. Upsert Cart Item
-        const existingItem = await this.prisma.cartItem.findUnique({
-            where: {
-                cartId_productId: {
-                    cartId: cart.id,
-                    productId: productId,
-                },
-            },
-        });
+    // 1. Check Product Stock
+    const product = await this.productRepository.findOne({
+      where: { id: productId },
+    });
+    if (!product) throw new NotFoundException("Product not found");
+    if (product.stock < quantity)
+      throw new BadRequestException("Insufficient stock");
 
-        if (existingItem) {
-            await this.prisma.cartItem.update({
-                where: { id: existingItem.id },
-                data: { quantity: existingItem.quantity + quantity },
-            });
-        } else {
-            await this.prisma.cartItem.create({
-                data: {
-                    cartId: cart.id,
-                    productId,
-                    quantity,
-                    priceSnapshot: product.price,
-                },
-            });
-        }
-
-        return this.getCart(sessionId);
+    // 2. Get or Create Cart
+    let cart = await this.cartRepository.findOne({ where: { sessionId } });
+    if (!cart) {
+      cart = this.cartRepository.create({ sessionId });
+      cart = await this.cartRepository.save(cart);
     }
 
-    async updateItem(sessionId: string, productId: number, dto: UpdateCartItemDto) {
-        const { quantity } = dto;
+    // 3. Upsert Cart Item
+    let existingItem = await this.cartItemRepository.findOne({
+      where: {
+        cart: { id: cart.id },
+        product: { id: productId },
+      },
+    });
 
-        const cart = await this.prisma.cart.findUnique({ where: { sessionId } });
-        if (!cart) throw new NotFoundException('Cart not found');
-
-        const item = await this.prisma.cartItem.findUnique({
-            where: { cartId_productId: { cartId: cart.id, productId } }
-        });
-        if (!item) throw new NotFoundException('Item not found in cart');
-
-        await this.prisma.cartItem.update({
-            where: { id: item.id },
-            data: { quantity }
-        });
-
-        return this.getCart(sessionId);
+    if (existingItem) {
+      existingItem.quantity += quantity;
+      await this.cartItemRepository.save(existingItem);
+    } else {
+      const newItem = this.cartItemRepository.create({
+        cart: { id: cart.id },
+        product: { id: productId },
+        quantity,
+        priceSnapshot: product.price,
+      });
+      await this.cartItemRepository.save(newItem);
     }
 
-    async removeItem(sessionId: string, productId: number) {
-        const cart = await this.prisma.cart.findUnique({ where: { sessionId } });
-        if (!cart) throw new NotFoundException('Cart not found');
+    return this.getCart(sessionId);
+  }
 
-        await this.prisma.cartItem.deleteMany({
-            where: {
-                cartId: cart.id,
-                productId: productId
-            }
-        });
+  async updateItem(
+    sessionId: string,
+    productId: number,
+    dto: UpdateCartItemDto,
+  ) {
+    const { quantity } = dto;
 
-        return this.getCart(sessionId);
+    const cart = await this.cartRepository.findOne({ where: { sessionId } });
+    if (!cart) throw new NotFoundException("Cart not found");
+
+    const item = await this.cartItemRepository.findOne({
+      where: {
+        cart: { id: cart.id },
+        product: { id: productId },
+      },
+    });
+    if (!item) throw new NotFoundException("Item not found in cart");
+
+    item.quantity = quantity;
+    await this.cartItemRepository.save(item);
+
+    return this.getCart(sessionId);
+  }
+
+  async removeItem(sessionId: string, productId: number) {
+    const cart = await this.cartRepository.findOne({ where: { sessionId } });
+    if (!cart) throw new NotFoundException("Cart not found");
+
+    await this.cartItemRepository.delete({
+      cart: { id: cart.id },
+      product: { id: productId },
+    });
+
+    return this.getCart(sessionId);
+  }
+
+  async deleteCart(sessionId: string): Promise<ServiceResponse<null>> {
+    const cart = await this.cartRepository.findOne({ where: { sessionId } });
+    if (cart) {
+      await this.cartRepository.remove(cart);
     }
-
-    async deleteCart(sessionId: string): Promise<ServiceResponse<null>> {
-        const cart = await this.prisma.cart.findUnique({ where: { sessionId } });
-        if (cart) {
-            await this.prisma.cart.delete({ where: { id: cart.id } });
-        }
-        return {
-            success: true,
-            message: 'Cart cleared successfully',
-            data: null
-        };
-    }
+    return {
+      success: true,
+      message: "Cart cleared successfully",
+      data: null,
+    };
+  }
 }

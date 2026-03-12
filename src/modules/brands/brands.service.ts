@@ -1,131 +1,139 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service';
-import { CreateBrandDto } from './dto/create-brand.dto';
-import { UpdateBrandDto } from './dto/update-brand.dto';
-import { ServiceResponse } from '../../common/interfaces/service-response.interface';
-import { Brand } from '@prisma/client';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { Brand } from "../../entities";
+import { CreateBrandDto } from "./dto/create-brand.dto";
+import { UpdateBrandDto } from "./dto/update-brand.dto";
+import { ServiceResponse } from "../../common/interfaces/service-response.interface";
 
 @Injectable()
 export class BrandsService {
-    constructor(private prisma: PrismaService) { }
+  constructor(
+    @InjectRepository(Brand)
+    private brandRepository: Repository<Brand>,
+  ) {}
 
-    //#region CREATE BRAND
-    async create(createBrandDto: CreateBrandDto): Promise<ServiceResponse<Brand>> {
-        const slug = this.generateSlug(createBrandDto.name);
+  //#region CREATE BRAND
+  async create(
+    createBrandDto: CreateBrandDto,
+  ): Promise<ServiceResponse<Brand>> {
+    const slug = this.generateSlug(createBrandDto.name);
 
-        const brand = await this.prisma.brand.create({
-            data: {
-                ...createBrandDto,
-                slug,
-            },
-            include: { logoImage: true },
-        });
+    const brand = this.brandRepository.create({
+      ...createBrandDto,
+      slug,
+    });
 
-        return {
-            success: true,
-            message: 'Brand created successfully',
-            data: brand,
-        };
+    const savedBrand = await this.brandRepository.save(brand);
+
+    // Refresh to include logo image if any
+    const refreshedBrand = await this.brandRepository.findOne({
+      where: { id: savedBrand.id },
+      relations: ["logoImage"],
+    });
+
+    return {
+      success: true,
+      message: "Brand created successfully",
+      data: refreshedBrand!,
+    };
+  }
+  //#endregion
+
+  //#region FIND BRANDS
+  async findAll(): Promise<ServiceResponse<Brand[]>> {
+    const brands = await this.brandRepository
+      .createQueryBuilder("brand")
+      .leftJoinAndSelect("brand.logoImage", "logoImage")
+      .loadRelationCountAndMap("brand.productCount", "brand.products")
+      .getMany();
+
+    return {
+      success: true,
+      message: "Brands fetched successfully",
+      data: brands,
+    };
+  }
+
+  async findOne(id: number): Promise<ServiceResponse<Brand>> {
+    const brand = await this.brandRepository.findOne({
+      where: { id },
+      relations: ["logoImage", "products"],
+    });
+
+    if (!brand) {
+      throw new NotFoundException(`Brand with ID ${id} not found`);
     }
-    //#endregion
 
-    //#region FIND BRANDS
-    async findAll(): Promise<ServiceResponse<Brand[]>> {
-        const brands = await this.prisma.brand.findMany({
-            include: {
-                logoImage: true,
-                _count: {
-                    select: { products: true },
-                },
-            },
-        });
+    return {
+      success: true,
+      message: "Brand fetched successfully",
+      data: brand,
+    };
+  }
+  //#endregion
 
-        return {
-            success: true,
-            message: 'Brands fetched successfully',
-            data: brands,
-        };
+  //#region UPDATE BRAND
+  async update(
+    id: number,
+    updateBrandDto: UpdateBrandDto,
+  ): Promise<ServiceResponse<Brand>> {
+    const brand = await this.brandRepository.findOne({
+      where: { id },
+    });
+
+    if (!brand) {
+      throw new NotFoundException(`Brand with ID ${id} not found`);
     }
 
-    async findOne(id: number): Promise<ServiceResponse<Brand>> {
-        const brand = await this.prisma.brand.findUnique({
-            where: { id },
-            include: {
-                logoImage: true,
-                products: true
-            },
-        });
-
-        if (!brand) {
-            throw new NotFoundException(`Brand with ID ${id} not found`);
-        }
-
-        return {
-            success: true,
-            message: 'Brand fetched successfully',
-            data: brand,
-        };
+    Object.assign(brand, updateBrandDto);
+    if (updateBrandDto.name) {
+      brand.slug = this.generateSlug(updateBrandDto.name);
     }
-    //#endregion
 
-    //#region UPDATE BRAND
-    async update(id: number, updateBrandDto: UpdateBrandDto): Promise<ServiceResponse<Brand>> {
-        const existingBrand = await this.prisma.brand.findUnique({
-            where: { id },
-        });
+    const updatedBrand = await this.brandRepository.save(brand);
 
-        if (!existingBrand) {
-            throw new NotFoundException(`Brand with ID ${id} not found`);
-        }
+    // Refresh to include logo image
+    const refreshedBrand = await this.brandRepository.findOne({
+      where: { id: updatedBrand.id },
+      relations: ["logoImage"],
+    });
 
-        const data: any = { ...updateBrandDto };
-        if (updateBrandDto.name) {
-            data.slug = this.generateSlug(updateBrandDto.name);
-        }
+    return {
+      success: true,
+      message: "Brand updated successfully",
+      data: refreshedBrand!,
+    };
+  }
+  //#endregion
 
-        const updatedBrand = await this.prisma.brand.update({
-            where: { id },
-            data,
-            include: { logoImage: true },
-        });
+  //#region DELETE BRAND
+  async remove(id: number): Promise<ServiceResponse<null>> {
+    const brand = await this.brandRepository.findOne({
+      where: { id },
+    });
 
-        return {
-            success: true,
-            message: 'Brand updated successfully',
-            data: updatedBrand,
-        };
+    if (!brand) {
+      throw new NotFoundException(`Brand with ID ${id} not found`);
     }
-    //#endregion
 
-    //#region DELETE BRAND
-    async remove(id: number): Promise<ServiceResponse<null>> {
-        const existingBrand = await this.prisma.brand.findUnique({
-            where: { id },
-        });
+    await this.brandRepository.remove(brand);
 
-        if (!existingBrand) {
-            throw new NotFoundException(`Brand with ID ${id} not found`);
-        }
+    return {
+      success: true,
+      message: "Brand deleted successfully",
+      data: null,
+    };
+  }
+  //#endregion
 
-        await this.prisma.brand.delete({
-            where: { id },
-        });
-
-        return {
-            success: true,
-            message: 'Brand deleted successfully',
-            data: null,
-        };
-    }
-    //#endregion
-
-    //#region HELPERS
-    private generateSlug(name: string): string {
-        return name
-            .toLowerCase()
-            .trim()
-            .replace(/ /g, '-')
-            .replace(/[^\w-]+/g, '');
-    }
-    //#endregion
+  //#region HELPERS
+  private generateSlug(name: string): string {
+    return name
+      .toLowerCase()
+      .trim()
+      .replace(/ /g, "-")
+      .replace(/[^\w-]+/g, "");
+  }
+  //#endregion
 }

@@ -1,7 +1,7 @@
-import { IsNumber, IsNotEmpty } from 'class-validator';
+import { IsNumber, IsNotEmpty } from "class-validator";
 
 export class CreatePaymentIntentDto {
-    @IsNumber()
-    @IsNotEmpty()
-    orderId: number;
+  @IsNumber()
+  @IsNotEmpty()
+  orderId: number;
 }

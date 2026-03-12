@@ -1,21 +1,26 @@
-import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../database/prisma.service';
+import { Injectable } from "@nestjs/common";
+import { InjectRepository } from "@nestjs/typeorm";
+import { Repository } from "typeorm";
+import { CustomerDetails } from "../../entities";
 
 @Injectable()
 export class UsersService {
-    constructor(private prisma: PrismaService) { }
+  constructor(
+    @InjectRepository(CustomerDetails)
+    private customerRepository: Repository<CustomerDetails>,
+  ) {}
 
-    // Admin dashboard usage: List all customers (from orders)
-    async findAll() {
-        return this.prisma.customerDetails.findMany({
-            orderBy: { createdAt: 'desc' }
-        });
-    }
+  // Admin dashboard usage: List all customers (from orders)
+  async findAll() {
+    return this.customerRepository.find({
+      order: { createdAt: "DESC" },
+    });
+  }
 
-    async findOne(id: number) {
-        return this.prisma.customerDetails.findUnique({
-            where: { id },
-            include: { order: true }
-        });
-    }
+  async findOne(id: number) {
+    return this.customerRepository.findOne({
+      where: { id },
+      relations: ["order"],
+    });
+  }
 }
